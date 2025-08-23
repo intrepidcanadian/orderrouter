@@ -4,6 +4,25 @@ import { Token, CurrencyAmount, TradeType, Percent } from '@uniswap/sdk-core';
 import { config } from '../config';
 import { ConfluxRouter, QuoteRequest, QuoteResponse } from './conflux-router';
 
+// GinsengSwap V3 Pool ABI (simplified)
+const POOL_ABI = [
+  {
+    inputs: [],
+    name: 'slot0',
+    outputs: [
+      { internalType: 'uint160', name: 'sqrtPriceX96', type: 'uint160' },
+      { internalType: 'int24', name: 'tick', type: 'int24' },
+      { internalType: 'uint16', name: 'observationIndex', type: 'uint16' },
+      { internalType: 'uint16', name: 'observationCardinality', type: 'uint16' },
+      { internalType: 'uint16', name: 'observationCardinalityNext', type: 'uint16' },
+      { internalType: 'uint8', name: 'feeProtocol', type: 'uint8' },
+      { internalType: 'bool', name: 'unlocked', type: 'bool' },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+];
+
 // GinsengSwap V3 Factory ABI (simplified)
 const FACTORY_ABI = [
   {
@@ -25,6 +44,16 @@ export interface Route {
   poolAddresses: string[];
   quote: string;
   gasEstimate: string;
+  priceImpact: number;
+  currentPrice: string;
+  marketRates: { [key: string]: string };
+  routeHops: Array<{
+    tokenIn: string;
+    tokenOut: string;
+    fee: number;
+    marketRate: string;
+    poolAddress: string;
+  }>;
 }
 
 export interface AdvancedQuoteRequest {
@@ -67,6 +96,65 @@ export class AdvancedRouter {
       this.provider
     );
     this.baseRouter = new ConfluxRouter();
+  }
+
+  // Helper method to calculate price impact
+  private calculatePriceImpact(amountIn: string, amountOut: string, decimalsIn: number, decimalsOut: number): number {
+    const inputAmount = parseFloat(amountIn) / Math.pow(10, decimalsIn);
+    const outputAmount = parseFloat(amountOut) / Math.pow(10, decimalsOut);
+    
+    if (inputAmount === 0 || outputAmount === 0) return 0;
+    
+    // Calculate the expected output based on input amount (assuming 1:1 ratio for simplicity)
+    const expectedOutput = inputAmount;
+    
+    // Calculate price impact as percentage
+    const priceImpact = ((expectedOutput - outputAmount) / expectedOutput) * 100;
+    
+    return Math.abs(priceImpact);
+  }
+
+  // Helper method to get current price from pool
+  private async getCurrentPrice(poolAddress: string): Promise<string> {
+    try {
+      const poolContract = new Contract(poolAddress, POOL_ABI, this.provider);
+      const slot0 = await poolContract.slot0();
+      const sqrtPriceX96 = slot0[0];
+      
+      // Calculate price from sqrtPriceX96
+      const Q96 = BigInt(2) ** BigInt(96);
+      const sqrtPrice = Number(sqrtPriceX96) / Number(Q96);
+      const price = sqrtPrice * sqrtPrice;
+      
+      return price.toFixed(6);
+    } catch (error) {
+      console.error('Error getting current price:', error);
+      return '0';
+    }
+  }
+
+  // Helper method to create market rates
+  private createMarketRates(routeHops: Array<{ tokenIn: string; tokenOut: string; fee: number; marketRate: string; poolAddress: string }>): { [key: string]: string } {
+    const marketRates: { [key: string]: string } = {};
+    
+    for (const hop of routeHops) {
+      const key = `${hop.tokenIn}-${hop.tokenOut}`;
+      marketRates[key] = hop.marketRate;
+    }
+    
+    return marketRates;
+  }
+
+  // Helper method to get token decimals
+  private getTokenDecimals(tokenAddress: string): number {
+    // Default decimals for common tokens
+    const tokenDecimals: { [key: string]: number } = {
+      [config.tokens.USDC]: 6,
+      [config.tokens.USDT]: 6,
+      [config.tokens.WCFX]: 18,
+    };
+    
+    return tokenDecimals[tokenAddress.toLowerCase()] || 18; // Default to 18
   }
 
   async findBestRoute(request: AdvancedQuoteRequest): Promise<AdvancedQuoteResponse> {
@@ -120,12 +208,39 @@ export class AdvancedRouter {
 
             const quote = await this.baseRouter.getQuote(quoteRequest);
             
+            // Get current price from pool
+            const currentPrice = await this.getCurrentPrice(poolAddress);
+            
+            // Calculate price impact
+            const priceImpact = this.calculatePriceImpact(
+              request.amount,
+              quote.quote,
+              this.getTokenDecimals(request.tokenIn),
+              this.getTokenDecimals(request.tokenOut)
+            );
+
+            // Create route hops
+            const routeHops = [{
+              tokenIn: request.tokenIn,
+              tokenOut: request.tokenOut,
+              fee: fee,
+              marketRate: `1 ${request.tokenIn} = ${currentPrice} ${request.tokenOut}`,
+              poolAddress: poolAddress
+            }];
+
+            // Create market rates
+            const marketRates = this.createMarketRates(routeHops);
+
             directRoutes.push({
               path: [request.tokenIn, request.tokenOut],
               fees: [fee],
               poolAddresses: [poolAddress],
               quote: quote.quote,
               gasEstimate: quote.estimatedGasUsed,
+              priceImpact: priceImpact,
+              currentPrice: currentPrice,
+              marketRates: marketRates,
+              routeHops: routeHops,
             });
           }
         } catch (error) {
@@ -204,12 +319,52 @@ export class AdvancedRouter {
       );
       if (!secondHop) return null;
 
+      // Get current prices from pools
+      const currentPrice1 = await this.getCurrentPrice(firstHop.poolAddress);
+      const currentPrice2 = await this.getCurrentPrice(secondHop.poolAddress);
+      
+      // Calculate overall price impact
+      const priceImpact = this.calculatePriceImpact(
+        amount,
+        secondHop.quote,
+        this.getTokenDecimals(tokenIn),
+        this.getTokenDecimals(tokenOut)
+      );
+
+      // Create route hops
+      const routeHops = [
+        {
+          tokenIn: tokenIn,
+          tokenOut: intermediateToken,
+          fee: firstHop.fee,
+          marketRate: `1 ${tokenIn} = ${currentPrice1} ${intermediateToken}`,
+          poolAddress: firstHop.poolAddress
+        },
+        {
+          tokenIn: intermediateToken,
+          tokenOut: tokenOut,
+          fee: secondHop.fee,
+          marketRate: `1 ${intermediateToken} = ${currentPrice2} ${tokenOut}`,
+          poolAddress: secondHop.poolAddress
+        }
+      ];
+
+      // Create market rates
+      const marketRates = this.createMarketRates(routeHops);
+
+      // Calculate effective current price (simplified)
+      const effectiveCurrentPrice = (parseFloat(currentPrice1) * parseFloat(currentPrice2)).toFixed(6);
+
       return {
         path: [tokenIn, intermediateToken, tokenOut],
         fees: [firstHop.fee, secondHop.fee],
         poolAddresses: [firstHop.poolAddress, secondHop.poolAddress],
         quote: secondHop.quote,
         gasEstimate: (parseInt(firstHop.gasEstimate) + parseInt(secondHop.gasEstimate)).toString(),
+        priceImpact: priceImpact,
+        currentPrice: effectiveCurrentPrice,
+        marketRates: marketRates,
+        routeHops: routeHops,
       };
     } catch (error) {
       console.error('Error finding 2-hop route:', error);
