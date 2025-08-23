@@ -99,8 +99,8 @@ export class AdvancedRouter {
   }
   // Helper method to calculate price impact
   private calculatePriceImpact(amountIn: string, amountOut: string, decimalsIn: number, decimalsOut: number, currentPrice: string): number {
-    const inputAmount = parseFloat(amountIn) / Math.pow(10, decimalsIn);
-    const outputAmount = parseFloat(amountOut) / Math.pow(10, decimalsOut);
+    const inputAmount = parseFloat(amountIn);
+    const outputAmount = parseFloat(amountOut);
     
     if (inputAmount === 0 || outputAmount === 0) return 0;
     
@@ -205,12 +205,16 @@ export class AdvancedRouter {
             // Get current price from pool
             const currentPrice = await this.getCurrentPrice(poolAddress);
             
+            // Convert amounts to human-readable format for price impact calculation
+            const inputAmountHuman = parseFloat(request.amount) / Math.pow(10, this.getTokenDecimals(request.tokenIn));
+            const outputAmountHuman = parseFloat(quote.quote) / Math.pow(10, this.getTokenDecimals(request.tokenOut));
+            
             // Calculate price impact
             const priceImpact = this.calculatePriceImpact(
-              request.amount,
-              quote.quote,
-              this.getTokenDecimals(request.tokenIn),
-              this.getTokenDecimals(request.tokenOut),
+              inputAmountHuman.toString(),
+              outputAmountHuman.toString(),
+              0, // No need to convert decimals since we already converted
+              0, // No need to convert decimals since we already converted
               currentPrice
             );
 
@@ -321,12 +325,16 @@ export class AdvancedRouter {
       // Calculate effective current price (simplified)
       const effectiveCurrentPrice = (parseFloat(currentPrice1) * parseFloat(currentPrice2)).toFixed(6);
       
+      // Convert amounts to human-readable format for price impact calculation
+      const inputAmountHuman = parseFloat(amount) / Math.pow(10, this.getTokenDecimals(tokenIn));
+      const outputAmountHuman = parseFloat(secondHop.quote) / Math.pow(10, this.getTokenDecimals(tokenOut));
+      
       // Calculate overall price impact
       const priceImpact = this.calculatePriceImpact(
-        amount,
-        secondHop.quote,
-        this.getTokenDecimals(tokenIn),
-        this.getTokenDecimals(tokenOut),
+        inputAmountHuman.toString(),
+        outputAmountHuman.toString(),
+        0, // No need to convert decimals since we already converted
+        0, // No need to convert decimals since we already converted
         effectiveCurrentPrice
       );
 
