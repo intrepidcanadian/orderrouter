@@ -98,14 +98,15 @@ export class AdvancedRouter {
     this.baseRouter = new ConfluxRouter();
   }
   // Helper method to calculate price impact
-  private calculatePriceImpact(amountIn: string, amountOut: string, decimalsIn: number, decimalsOut: number): number {
+  private calculatePriceImpact(amountIn: string, amountOut: string, decimalsIn: number, decimalsOut: number, currentPrice: string): number {
     const inputAmount = parseFloat(amountIn) / Math.pow(10, decimalsIn);
     const outputAmount = parseFloat(amountOut) / Math.pow(10, decimalsOut);
     
     if (inputAmount === 0 || outputAmount === 0) return 0;
     
-    // Calculate the expected output based on input amount (assuming 1:1 ratio for simplicity)
-    const expectedOutput = inputAmount;
+    // Calculate the expected output based on current market price
+    const marketPrice = parseFloat(currentPrice);
+    const expectedOutput = inputAmount * marketPrice;
     
     // Calculate price impact as percentage
     const priceImpact = ((expectedOutput - outputAmount) / expectedOutput) * 100;
@@ -209,7 +210,8 @@ export class AdvancedRouter {
               request.amount,
               quote.quote,
               this.getTokenDecimals(request.tokenIn),
-              this.getTokenDecimals(request.tokenOut)
+              this.getTokenDecimals(request.tokenOut),
+              currentPrice
             );
 
             // Create route hops
@@ -316,12 +318,16 @@ export class AdvancedRouter {
       const currentPrice1 = await this.getCurrentPrice(firstHop.poolAddress);
       const currentPrice2 = await this.getCurrentPrice(secondHop.poolAddress);
       
+      // Calculate effective current price (simplified)
+      const effectiveCurrentPrice = (parseFloat(currentPrice1) * parseFloat(currentPrice2)).toFixed(6);
+      
       // Calculate overall price impact
       const priceImpact = this.calculatePriceImpact(
         amount,
         secondHop.quote,
         this.getTokenDecimals(tokenIn),
-        this.getTokenDecimals(tokenOut)
+        this.getTokenDecimals(tokenOut),
+        effectiveCurrentPrice
       );
 
       // Create route hops
@@ -344,9 +350,6 @@ export class AdvancedRouter {
 
       // Create market rates
       const marketRates = this.createMarketRates(routeHops);
-
-      // Calculate effective current price (simplified)
-      const effectiveCurrentPrice = (parseFloat(currentPrice1) * parseFloat(currentPrice2)).toFixed(6);
 
       return {
         path: [tokenIn, intermediateToken, tokenOut],
