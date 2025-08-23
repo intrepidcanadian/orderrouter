@@ -97,7 +97,6 @@ export class AdvancedRouter {
     );
     this.baseRouter = new ConfluxRouter();
   }
-
   // Helper method to calculate price impact
   private calculatePriceImpact(amountIn: string, amountOut: string, decimalsIn: number, decimalsOut: number): number {
     const inputAmount = parseFloat(amountIn) / Math.pow(10, decimalsIn);
@@ -147,14 +146,8 @@ export class AdvancedRouter {
 
   // Helper method to get token decimals
   private getTokenDecimals(tokenAddress: string): number {
-    // Default decimals for common tokens
-    const tokenDecimals: { [key: string]: number } = {
-      [config.tokens.USDC]: 6,
-      [config.tokens.USDT]: 6,
-      [config.tokens.WCFX]: 18,
-    };
-    
-    return tokenDecimals[tokenAddress.toLowerCase()] || 18; // Default to 18
+    // All tokens on Conflux eSpace use 18 decimals
+    return 18;
   }
 
   async findBestRoute(request: AdvancedQuoteRequest): Promise<AdvancedQuoteResponse> {
