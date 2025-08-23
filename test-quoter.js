@@ -9,8 +9,8 @@ const QUOTER_V2_ABI = [
         components: [
           { internalType: 'address', name: 'tokenIn', type: 'address' },
           { internalType: 'address', name: 'tokenOut', type: 'address' },
-          { internalType: 'uint256', name: 'fee', type: 'uint256' },
           { internalType: 'uint256', name: 'amountIn', type: 'uint256' },
+          { internalType: 'uint24', name: 'fee', type: 'uint24' },
           { internalType: 'uint160', name: 'sqrtPriceLimitX96', type: 'uint160' },
         ],
         internalType: 'struct IQuoterV2.QuoteExactInputSingleParams',
@@ -52,13 +52,13 @@ async function testQuoterV2() {
     try {
       console.log(`\nTesting amount: ${parseFloat(amountIn) / Math.pow(10, 18)} USDC`);
       
-      const result = await quoterContract.callStatic.quoteExactInputSingle({
-        tokenIn: USDC,
-        tokenOut: USDT,
-        fee: 500, // 0.05%
-        amountIn: amountIn,
-        sqrtPriceLimitX96: '0',
-      });
+          const result = await quoterContract.callStatic.quoteExactInputSingle({
+      tokenIn: USDC,
+      tokenOut: USDT,
+      amountIn: amountIn,
+      fee: BigInt(500), // 0.05%
+      sqrtPriceLimitX96: BigInt(0),
+    });
       
       const amountOut = parseFloat(result[0].toString()) / Math.pow(10, 18);
       console.log(`✅ Success: ${amountOut} USDT`);

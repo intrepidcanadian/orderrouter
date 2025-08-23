@@ -250,8 +250,8 @@ export class ConfluxRouter {
                 components: [
                   { internalType: 'address', name: 'tokenIn', type: 'address' },
                   { internalType: 'address', name: 'tokenOut', type: 'address' },
-                  { internalType: 'uint256', name: 'fee', type: 'uint256' },
                   { internalType: 'uint256', name: 'amountIn', type: 'uint256' },
+                  { internalType: 'uint24', name: 'fee', type: 'uint24' },
                   { internalType: 'uint160', name: 'sqrtPriceLimitX96', type: 'uint160' },
                 ],
                 internalType: 'struct IQuoterV2.QuoteExactInputSingleParams',
@@ -273,12 +273,12 @@ export class ConfluxRouter {
         this.provider
       );
 
-      const result = await quoterContract.quoteExactInputSingle({
+      const result = await quoterContract.callStatic.quoteExactInputSingle({
         tokenIn: tokenIn.address,
         tokenOut: tokenOut.address,
-        fee: fee,
         amountIn: amount.quotient.toString(),
-        sqrtPriceLimitX96: '0',
+        fee: BigInt(fee),
+        sqrtPriceLimitX96: BigInt(0),
       });
 
       return CurrencyAmount.fromRawAmount(tokenOut, result[0].toString());
