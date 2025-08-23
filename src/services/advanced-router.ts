@@ -104,12 +104,17 @@ export class AdvancedRouter {
     
     if (inputAmount === 0 || outputAmount === 0) return 0;
     
-    // Calculate the expected output based on current market price
-    const marketPrice = parseFloat(currentPrice);
-    const expectedOutput = inputAmount * marketPrice;
+    // Calculate the execution price (what price you actually got)
+    const executionPrice = outputAmount / inputAmount;
     
-    // Calculate price impact as percentage
-    const priceImpact = ((expectedOutput - outputAmount) / expectedOutput) * 100;
+    // Current market price from the pool
+    const marketPrice = parseFloat(currentPrice);
+    
+    if (marketPrice === 0) return 0;
+    
+    // Price impact = (market price - execution price) / market price * 100
+    // This shows how much the trade moved the price away from the current market price
+    const priceImpact = ((marketPrice - executionPrice) / marketPrice) * 100;
     
     return Math.abs(priceImpact);
   }
