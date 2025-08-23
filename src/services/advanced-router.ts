@@ -205,9 +205,9 @@ export class AdvancedRouter {
             // Get current price from pool
             const currentPrice = await this.getCurrentPrice(poolAddress);
             
-            // Convert amounts to human-readable format for price impact calculation
+            // Convert input amount to human-readable format, quote.quote is already human-readable
             const inputAmountHuman = parseFloat(request.amount) / Math.pow(10, this.getTokenDecimals(request.tokenIn));
-            const outputAmountHuman = parseFloat(quote.quote) / Math.pow(10, this.getTokenDecimals(request.tokenOut));
+            const outputAmountHuman = parseFloat(quote.quote); // Already in human-readable format
             
             // Calculate price impact
             const priceImpact = this.calculatePriceImpact(
@@ -325,9 +325,9 @@ export class AdvancedRouter {
       // Calculate effective current price (simplified)
       const effectiveCurrentPrice = (parseFloat(currentPrice1) * parseFloat(currentPrice2)).toFixed(6);
       
-      // Convert amounts to human-readable format for price impact calculation
+      // Convert input amount to human-readable format, secondHop.quote is already human-readable
       const inputAmountHuman = parseFloat(amount) / Math.pow(10, this.getTokenDecimals(tokenIn));
-      const outputAmountHuman = parseFloat(secondHop.quote) / Math.pow(10, this.getTokenDecimals(tokenOut));
+      const outputAmountHuman = parseFloat(secondHop.quote); // Already in human-readable format
       
       // Calculate overall price impact
       const priceImpact = this.calculatePriceImpact(
