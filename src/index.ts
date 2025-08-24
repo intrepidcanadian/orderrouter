@@ -167,14 +167,14 @@ app.post('/route', async (req, res) => {
     // Create cache key
     const cacheKey = `route:${tokenIn}:${tokenOut}:${amount}:${maxHops}:${slippageTolerance}`;
     
-    // Check cache first
-    const cachedRoute = cache.get(cacheKey);
-    if (cachedRoute) {
-      return res.json({
-        ...cachedRoute,
-        cached: true,
-      });
-    }
+    // Temporarily disable cache to get fresh results
+    // const cachedRoute = cache.get(cacheKey);
+    // if (cachedRoute) {
+    //   return res.json({
+    //     ...cachedRoute,
+    //     cached: true,
+    //   });
+    // }
 
     // Prepare request
     const routeRequest: AdvancedQuoteRequest = {
@@ -190,8 +190,8 @@ app.post('/route', async (req, res) => {
     // Find best route
     const route = await advancedRouter.findBestRoute(routeRequest);
 
-    // Cache the result
-    cache.set(cacheKey, route);
+    // Temporarily disable cache to get fresh results
+    // cache.set(cacheKey, route);
 
     res.json({
       ...route,
@@ -244,6 +244,8 @@ app.get('/intermediate-tokens', (req, res) => {
     chainId: config.conflux.chainId,
   });
 });
+
+
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
