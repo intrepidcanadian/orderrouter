@@ -311,16 +311,25 @@ export class AdvancedRouter {
     amount: string
   ): Promise<Route | null> {
     try {
+      console.log(`Finding 2-hop route: ${tokenIn} -> ${intermediateToken} -> ${tokenOut}`);
+      console.log(`Input amount: ${amount}`);
+      
       // Find first hop: tokenIn -> intermediateToken
       const firstHop = await this.findBestDirectRoute(tokenIn, intermediateToken, amount);
+      console.log(`First hop result:`, firstHop ? `SUCCESS - Quote: ${firstHop.quote}` : 'FAILED');
       if (!firstHop) return null;
 
       // Find second hop: intermediateToken -> tokenOut
+      // Convert firstHop.quote (human-readable) to wei format for the second hop
+      const secondHopAmountWei = Math.floor(parseFloat(firstHop.quote) * Math.pow(10, this.getTokenDecimals(intermediateToken))).toString();
+      console.log(`Second hop amount (wei): ${secondHopAmountWei}`);
+      
       const secondHop = await this.findBestDirectRoute(
         intermediateToken,
         tokenOut,
-        firstHop.quote
+        secondHopAmountWei
       );
+      console.log(`Second hop result:`, secondHop ? `SUCCESS - Quote: ${secondHop.quote}` : 'FAILED');
       if (!secondHop) return null;
 
       // Get current prices from pools
