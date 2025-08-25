@@ -275,11 +275,8 @@ export class AdvancedRouter {
     // For 2-hop routes: tokenIn -> intermediate -> tokenOut
     if (maxHops >= 2) {
       for (const intermediateToken of this.intermediateTokens) {
-        // Skip if intermediate token is the same as input or output
-        if (
-          intermediateToken.toLowerCase() === request.tokenIn.toLowerCase() ||
-          intermediateToken.toLowerCase() === request.tokenOut.toLowerCase()
-        ) {
+        // Skip if intermediate token is the same as input
+        if (intermediateToken.toLowerCase() === request.tokenIn.toLowerCase()) {
           continue;
         }
 
