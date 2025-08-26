@@ -317,7 +317,28 @@ export class AdvancedRouter {
       // Use string manipulation to avoid floating point precision issues
       const quoteAmount = parseFloat(firstHop.quote);
       const decimals = this.getTokenDecimals(intermediateToken);
-      const secondHopAmountWei = Math.floor(quoteAmount * Math.pow(10, decimals)).toString();
+      
+      // Convert to string and handle decimal places properly
+      const quoteString = quoteAmount.toString();
+      const decimalIndex = quoteString.indexOf('.');
+      
+      let secondHopAmountWei: string;
+      if (decimalIndex === -1) {
+        // No decimal point, just add zeros
+        secondHopAmountWei = quoteString + '0'.repeat(decimals);
+      } else {
+        // Has decimal point, need to handle properly
+        const integerPart = quoteString.substring(0, decimalIndex);
+        const decimalPart = quoteString.substring(decimalIndex + 1);
+        const zerosNeeded = decimals - decimalPart.length;
+        
+        if (zerosNeeded >= 0) {
+          secondHopAmountWei = integerPart + decimalPart + '0'.repeat(zerosNeeded);
+        } else {
+          // Too many decimal places, truncate
+          secondHopAmountWei = integerPart + decimalPart.substring(0, decimals);
+        }
+      }
       
       const secondHop = await this.findBestDirectRoute(
         intermediateToken,
